@@ -8,18 +8,28 @@ import os
 class TestCli(TestCase):
     def setUp(self) -> None:
         self.image = 'fixture/abc.png'
-        self.text = '极电子场@知乎@微信订阅号'
+        self.text = '知乎@极电子场'
         self.output = 'fixture/abc_embed_output.png'
-        self.marker = Marker(123,321)
+        self.marker = Marker(123, 321)
 
     def test_main(self):
         marker = self.marker
         text = 'hello world'
         marker.add_text_mark_write(self.image, text, self.output)
-        os.path.isfile(self.output)
-        extracted_text = Marker.extract_text_mark(self.output, '123_321_87')
+        self.assertTrue(
+            os.path.isfile(self.output)
+        )
+        extracted_text = Marker.extract_text_mark(self.output, 'abc_123_321_87.jpeg')
         self.assertEqual(text, extracted_text)
         os.remove(self.output)
+
+    def test_extract_text_with_pass_in_filename(self):
+        m = self.marker
+        text = self.text
+        path = m.add_text_mark_write(self.image, text, self.output, True)
+        extracted_text = Marker.extract_text_mark(path)
+        self.assertEqual(extracted_text, text)
+        os.remove(path)
 
     def test_add_text_watermark_with_cipher(self):
         marker = self.marker
@@ -50,7 +60,7 @@ class TestCli(TestCase):
         marker = MarkerRandom()
         marker._read_data(self.image, self.text)
         a, b, c = marker._get_encryption_code()
-        path = marker.add_text_mark_write(self.image, self.text, self.output,True)
+        path = marker.add_text_mark_write(self.image, self.text, self.output, True)
 
         self.assertTrue(
             os.path.exists(f'fixture/abc_embed_output_{a}_{b}_{c}.png'),
@@ -58,5 +68,3 @@ class TestCli(TestCase):
         )
 
         os.remove(path)
-
-

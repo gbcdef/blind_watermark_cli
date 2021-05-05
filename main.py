@@ -49,12 +49,21 @@ class Marker:
         return self._write_to(path_to_output_with_passcode)
 
     @staticmethod
-    def extract_text_mark(path_to_image, password):
+    def extract_text_mark(path_to_image, password=None):
         import re
-        pattern = re.compile(r'(\d+)_(\d+)_(\d+)')
-        if not pattern.match(password):
-            return
-        a, b, length = (int(x) for x in password.split('_'))
+        lg.info(password)
+        if password:
+            _tmp = password
+        else:
+            _tmp = path_to_image
+        match = re.match(r'.*_(\d+)_(\d+)_(\d+)\.\D{3,4}', _tmp)
+        lg.info(match)
+        if not match:
+            raise Exception
+        # a, b, length = (int(x) for x in password.split('_'))
+        a, b, length = (int(x) for x in match.groups())
+
+        lg.info(f'{a}, {b}, {length}')
 
         wm = WaterMark(a, b)
 
@@ -86,18 +95,24 @@ def main():
     lg.setLevel(logging.WARN)
 
     parser = argparse.ArgumentParser(description='Add blind watermark to images')
+    parser.add_argument('command', type=str)
     parser.add_argument('image', type=str)
     parser.add_argument('-t', type=str, default='Watermark', help='Text watermark')
-    parser.add_argument('-p', type=bool, default=True)
+    parser.add_argument('-w', type=bool, default=True)
     parser.add_argument('-o', type=str, default='embed.png')
+    parser.add_argument('-p', default=None)
     # parser.add_argument('-v', type=bool, default=False)
     args = parser.parse_args()
 
     # if args.v:
     #     lg.setLevel(logging.INFO)
 
-    marker = MarkerRandom()
-    marker.add_text_mark_write(args.image, args.t, args.o, args.p)
+    if args.command == 'encode':
+        marker = MarkerRandom()
+        marker.add_text_mark_write(args.image, args.t, args.o, args.w)
+    elif args.command == 'decode':
+        text = Marker.extract_text_mark(args.image, args.p)
+        print(f'Text watermark is: {text}')
 
 
 if __name__ == '__main__':
