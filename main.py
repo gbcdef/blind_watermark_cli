@@ -27,6 +27,7 @@ class Marker:
         else:
             path = self._write_to(path_to_output)
         lg.info(f'File saved to: {os.path.abspath(path_to_output)}')
+        lg.info(f'Watermark is: {wm_text}')
         return path
 
     def _write_to(self, path_to_output):
@@ -38,19 +39,26 @@ class Marker:
         dirname = os.path.dirname(path_to_output)
         filename, suffix = os.path.splitext(basename)
         lg.info(f'Suffix: {suffix}')
-        path_to_output_with_passcode = ''.join((os.path.join(dirname, filename),
-                          '_pwm', str(self._password_wm),
-                          '_pimg', str(self._password_img),
-                          suffix))
+        path_to_output_with_passcode = f'{os.path.join(dirname, filename)}' \
+                                       f'_{self._password_wm}' \
+                                       f'_{self._password_img}' \
+                                       f'_{self._bit_length}' \
+                                       f'{suffix}'
         lg.info(f'Output: {path_to_output_with_passcode}')
         lg.info(f'Don\'t forget your password pair for this image: {self._password_wm}, {self._password_img}')
         return self._write_to(path_to_output_with_passcode)
 
-    def extract_text_mark(self, path_to_image, wm_text):
-        bwm = self.bwm
-        bwm.read_wm(wm_text, mode='str')
-        length = len(bwm.wm_bit)
-        result = bwm.extract(path_to_image, length, mode='str')
+    @staticmethod
+    def extract_text_mark(path_to_image, password):
+        import re
+        pattern = re.compile(r'(\d+)_(\d+)_(\d+)')
+        if not pattern.match(password):
+            return
+        a, b, length = (int(x) for x in password.split('_'))
+
+        wm = WaterMark(a, b)
+
+        result = wm.extract(path_to_image, length, mode='str')
         lg.info(f'Extracted text watermark: {result}')
         return result
 
@@ -75,16 +83,21 @@ class MarkerRandom(Marker):
 
 
 def main():
-    # lg.setLevel(logging.WARN)
+    lg.setLevel(logging.WARN)
 
     parser = argparse.ArgumentParser(description='Add blind watermark to images')
     parser.add_argument('image', type=str)
-    parser.add_argument('-t', type=str, help='Text watermark')
-    parser.add_argument('-o', type=str, default='embed')
+    parser.add_argument('-t', type=str, default='Watermark', help='Text watermark')
+    parser.add_argument('-p', type=bool, default=True)
+    parser.add_argument('-o', type=str, default='embed.png')
+    # parser.add_argument('-v', type=bool, default=False)
     args = parser.parse_args()
 
+    # if args.v:
+    #     lg.setLevel(logging.INFO)
+
     marker = MarkerRandom()
-    marker.add_text_mark_write(args.image, args.t, args.o)
+    marker.add_text_mark_write(args.image, args.t, args.o, args.p)
 
 
 if __name__ == '__main__':
