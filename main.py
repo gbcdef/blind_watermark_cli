@@ -92,7 +92,7 @@ class MarkerRandom(Marker):
 
 
 def main():
-    lg.setLevel(logging.WARN)
+    # lg.setLevel(logging.WARN)
 
     parser = argparse.ArgumentParser(description='Add blind watermark to images')
     parser.add_argument('command', type=str)
@@ -110,6 +110,24 @@ def main():
     if args.command == 'encode':
         marker = MarkerRandom()
         marker.add_text_mark_write(args.image, args.t, args.o, args.w)
+    elif args.command == 'encodedir':
+        if not os.path.isdir(args.image):
+            raise NotADirectoryError
+
+        import shutil
+        for file in os.listdir(args.image):
+            marker = MarkerRandom()
+            fullpath = os.path.join(args.image, file)
+            writepath: str = os.path.join(args.image, 'watermarked_' + file)
+            lg.info(fullpath)
+            lg.info(writepath)
+            try:
+                path = marker.add_text_mark_write(fullpath, args.t, writepath, args.w)
+                lg.info(path)
+                shutil.copy2(path, writepath)
+            except:
+                lg.warning(f'Add watermark failed: {fullpath}')
+
     elif args.command == 'decode':
         text = Marker.extract_text_mark(args.image, args.p)
         print(f'Text watermark is: {text}')
