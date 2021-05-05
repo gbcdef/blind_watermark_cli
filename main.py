@@ -10,24 +10,41 @@ lg = logging.getLogger(__name__)
 
 class Marker:
     def __init__(self, password_wm, password_img):
-        self.password_wm = password_wm
-        self.password_img = password_img
+        self._password_wm = password_wm
+        self._password_img = password_img
         self.bwm = WaterMark(password_wm=password_wm, password_img=password_img)
-        self.bit_length = 0
+        self._bit_length = 0
+        self._path_to_image = ''
 
-    def add_text_mark(self, path_to_image, wm_text, path_to_output):
-        bwm = self.bwm
+    def add_text_mark_write(self, path_to_image, wm_text, path_to_output, is_with_passcode=False):
         lg.info(f'Working directory: {os.getcwd()}')
         lg.info(f'Parameters: {path_to_image}, {wm_text}, {path_to_output}')
+        self._path_to_image = path_to_image
 
-
-        if os.path.isfile(path_to_image):
-            bwm.read_img(path_to_image)
-            bwm.read_wm(wm_text, mode='str')
-            bwm.embed(path_to_output)
-            lg.info(f'File saved to: {os.path.abspath(path_to_output)}')
+        self._read_data(path_to_image, wm_text)
+        if is_with_passcode:
+            path = self._write_to_with_passcode(path_to_output)
         else:
-            raise FileNotFoundError
+            path = self._write_to(path_to_output)
+        lg.info(f'File saved to: {os.path.abspath(path_to_output)}')
+        return path
+
+    def _write_to(self, path_to_output):
+        self.bwm.embed(path_to_output)
+        return path_to_output
+
+    def _write_to_with_passcode(self, path_to_output):
+        basename = os.path.basename(path_to_output)
+        dirname = os.path.dirname(path_to_output)
+        filename, suffix = os.path.splitext(basename)
+        lg.info(f'Suffix: {suffix}')
+        path_to_output_with_passcode = ''.join((os.path.join(dirname, filename),
+                          '_pwm', str(self._password_wm),
+                          '_pimg', str(self._password_img),
+                          suffix))
+        lg.info(f'Output: {path_to_output_with_passcode}')
+        lg.info(f'Don\'t forget your password pair for this image: {self._password_wm}, {self._password_img}')
+        return self._write_to(path_to_output_with_passcode)
 
     def extract_text_mark(self, path_to_image, wm_text):
         bwm = self.bwm
@@ -37,34 +54,24 @@ class Marker:
         lg.info(f'Extracted text watermark: {result}')
         return result
 
-    def read_data(self, path_to_image, wm_text):
+    def _read_data(self, path_to_image, wm_text):
         if not os.path.isfile(path_to_image):
             raise FileNotFoundError
         self.bwm.read_img(path_to_image)
         self.bwm.read_wm(wm_text, mode='str')
-        self.bit_length = len(self.bwm.wm_bit)
+        self._bit_length = len(self.bwm.wm_bit)
 
-    def get_encryption_code(self, path_to_image, wm_text):
-        self.read_data(path_to_image, wm_text)
-        return self.password_wm, self.password_img, self.bit_length
+    def _get_encryption_code(self):
+        if self._bit_length == 0:
+            raise NotImplementedError
+        return self._password_wm, self._password_img, self._bit_length
 
 
 class MarkerRandom(Marker):
     def __init__(self):
-        self.password_wm = random.randint(100000, 999999)
-        self.password_img = random.randint(100000, 999999)
-        super().__init__(self.password_wm, self.password_img)
-
-    def add_text_mark(self, path_to_image, wm_text, path_to_output):
-        suffix = path_to_image.split('.')[-1]
-        lg.info(f'Suffix: {suffix}')
-        output = ''.join((path_to_output,
-                          '_pwm', str(self.password_wm),
-                          '_pimg', str(self.password_img),
-                          '.', suffix))
-        lg.info(f'Output: {output}')
-        super().add_text_mark(path_to_image, wm_text, output)
-        lg.info(f'Don\'t forget your password pair for this image: {self.password_wm}, {self.password_img}')
+        self._password_wm = random.randint(100000, 999999)
+        self._password_img = random.randint(100000, 999999)
+        super().__init__(self._password_wm, self._password_img)
 
 
 def main():
@@ -77,7 +84,7 @@ def main():
     args = parser.parse_args()
 
     marker = MarkerRandom()
-    marker.add_text_mark(args.image, args.t, args.o)
+    marker.add_text_mark_write(args.image, args.t, args.o)
 
 
 if __name__ == '__main__':
